@@ -96,6 +96,33 @@ abstract class StateMachine
      */
     public function transitionTo($from, $to, $customProperties = [], $responsible = null)
     {
+        $this->performTransition($from, $to, $customProperties, $responsible, true);
+    }
+
+    /**
+     * @param $from
+     * @param $to
+     * @param array $customProperties
+     * @param null|mixed $responsible
+     * @throws TransitionNotAllowedException
+     * @throws ValidationException
+     */
+    public function transitionToQuietly($from, $to, $customProperties = [], $responsible = null)
+    {
+        $this->performTransition($from, $to, $customProperties, $responsible, false);
+    }
+
+    /**
+     * @param $from
+     * @param $to
+     * @param array $customProperties
+     * @param null|mixed $responsible
+     * @param bool $runHooks
+     * @throws TransitionNotAllowedException
+     * @throws ValidationException
+     */
+    protected function performTransition($from, $to, $customProperties = [], $responsible = null, $runHooks = true)
+    {
         if ($to === $this->currentState()) {
             return;
         }
@@ -109,12 +136,14 @@ abstract class StateMachine
             throw new ValidationException($validator);
         }
 
-        $beforeTransitionHooks = $this->beforeTransitionHooks()[$from] ?? [];
+        if ($runHooks) {
+            $beforeTransitionHooks = $this->beforeTransitionHooks()[$from] ?? [];
 
-        collect($beforeTransitionHooks)
-            ->each(function ($callable) use ($to) {
-                $callable($to, $this->model);
-            });
+            collect($beforeTransitionHooks)
+                ->each(function ($callable) use ($to) {
+                    $callable($to, $this->model);
+                });
+        }
 
         $field = $this->field;
         $this->model->$field = $to;
@@ -129,12 +158,14 @@ abstract class StateMachine
             $this->model->recordState($field, $from, $to, $customProperties, $responsible, $changedAttributes);
         }
 
-        $afterTransitionHooks = $this->afterTransitionHooks()[$to] ?? [];
+        if ($runHooks) {
+            $afterTransitionHooks = $this->afterTransitionHooks()[$to] ?? [];
 
-        collect($afterTransitionHooks)
-            ->each(function ($callable) use ($from) {
-                $callable($from, $this->model);
-            });
+            collect($afterTransitionHooks)
+                ->each(function ($callable) use ($from) {
+                    $callable($from, $this->model);
+                });
+        }
 
         $this->cancelAllPendingTransitions();
     }
