@@ -5,7 +5,6 @@ namespace Asantibanez\LaravelEloquentStateMachines\Tests\Feature;
 use Asantibanez\LaravelEloquentStateMachines\Tests\TestCase;
 use Asantibanez\LaravelEloquentStateMachines\Tests\TestJobs\AfterTransitionJob;
 use Asantibanez\LaravelEloquentStateMachines\Tests\TestModels\SalesOrderWithAfterTransitionHook;
-use Asantibanez\LaravelEloquentStateMachines\Tests\TestModels\SalesOrderWithBeforeTransitionHook;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Queue;
@@ -59,6 +58,30 @@ class AfterTransitionHookTest extends TestCase
 
         $this->assertNull($salesOrder->total);
         $this->assertNull($salesOrder->notes);
+
+        Queue::assertNotPushed(AfterTransitionJob::class);
+    }
+
+    /** @test */
+    public function should_skip_after_transition_hooks_when_transitioning_quietly()
+    {
+        //Arrange
+        Queue::fake();
+
+        $salesOrder = SalesOrderWithAfterTransitionHook::create([
+            'total' => 100,
+            'notes' => 'before',
+        ]);
+
+        //Act
+        $salesOrder->status()->transitionToQuietly('approved');
+
+        //Assert
+        $salesOrder->refresh();
+
+        $this->assertEquals('approved', $salesOrder->status);
+        $this->assertEquals(100, $salesOrder->total);
+        $this->assertEquals('before', $salesOrder->notes);
 
         Queue::assertNotPushed(AfterTransitionJob::class);
     }

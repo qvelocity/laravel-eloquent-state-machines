@@ -80,6 +80,149 @@ class HasStateMachinesTest extends TestCase
     }
 
     /** @test */
+    public function transition_if_can_be_should_return_true_and_transition_when_allowed()
+    {
+        //Arrange
+        $salesOrder = factory(SalesOrder::class)->create();
+
+        $this->assertTrue($salesOrder->status()->is('pending'));
+
+        //Act
+        $result = $salesOrder->status()->transitionIfCanBe('approved');
+
+        //Assert
+        $salesOrder->refresh();
+
+        $this->assertTrue($result);
+        $this->assertTrue($salesOrder->status()->is('approved'));
+    }
+
+    /** @test */
+    public function transition_if_can_be_should_return_false_and_not_transition_when_not_allowed()
+    {
+        //Arrange
+        $salesOrder = factory(SalesOrder::class)->create([
+            'status' => 'approved',
+        ]);
+
+        $this->assertEquals(1, $salesOrder->status()->history()->count());
+
+        //Act
+        $result = $salesOrder->status()->transitionIfCanBe('pending');
+
+        //Assert
+        $salesOrder->refresh();
+
+        $this->assertFalse($result);
+        $this->assertTrue($salesOrder->status()->is('approved'));
+        $this->assertEquals(1, $salesOrder->status()->history()->count());
+    }
+
+    /** @test */
+    public function transition_if_can_be_should_support_additional_details_as_string()
+    {
+        //Arrange
+        $salesOrder = factory(SalesOrder::class)->create();
+
+        //Act
+        $salesOrder->status()->transitionIfCanBe('approved', 'Customer approved by phone');
+
+        //Assert
+        $salesOrder->refresh();
+
+        $this->assertEquals('Customer approved by phone', $salesOrder->status()->getCustomProperty('Additional Details'));
+    }
+
+    /** @test */
+    public function transition_if_can_be_quietly_should_return_true_and_transition_when_allowed()
+    {
+        //Arrange
+        $salesOrder = factory(SalesOrder::class)->create();
+
+        //Act
+        $result = $salesOrder->status()->transitionIfCanBeQuietly('approved');
+
+        //Assert
+        $salesOrder->refresh();
+
+        $this->assertTrue($result);
+        $this->assertTrue($salesOrder->status()->is('approved'));
+    }
+
+    /** @test */
+    public function transition_if_can_be_quietly_should_return_false_and_not_transition_when_not_allowed()
+    {
+        //Arrange
+        $salesOrder = factory(SalesOrder::class)->create([
+            'status' => 'approved',
+        ]);
+
+        $this->assertEquals(1, $salesOrder->status()->history()->count());
+
+        //Act
+        $result = $salesOrder->status()->transitionIfCanBeQuietly('pending');
+
+        //Assert
+        $salesOrder->refresh();
+
+        $this->assertFalse($result);
+        $this->assertTrue($salesOrder->status()->is('approved'));
+        $this->assertEquals(1, $salesOrder->status()->history()->count());
+    }
+
+    /** @test */
+    public function transition_if_can_be_quietly_should_throw_validation_exception_when_validator_fails()
+    {
+        //Arrange
+        $salesOrder = factory(SalesOrder::class)->create();
+
+        $this->assertTrue($salesOrder->fulfillment()->is(null));
+
+        //Act
+        try {
+            $salesOrder->fulfillment()->transitionIfCanBeQuietly('pending');
+            $this->fail('Should have thrown exception');
+        } catch (Throwable $throwable) {
+            //Assert
+            $this->assertTrue($throwable instanceof ValidationException);
+        }
+    }
+
+    /** @test */
+    public function transition_if_can_be_quietly_should_support_additional_details_as_array()
+    {
+        //Arrange
+        $salesOrder = factory(SalesOrder::class)->create();
+
+        //Act
+        $salesOrder->status()->transitionIfCanBeQuietly('approved', [
+            'comments' => 'Ready to process',
+        ]);
+
+        //Assert
+        $salesOrder->refresh();
+
+        $this->assertEquals('Ready to process', $salesOrder->status()->getCustomProperty('comments'));
+    }
+
+    /** @test */
+    public function transition_if_can_be_quietly_should_support_additional_details_as_string()
+    {
+        //Arrange
+        $salesOrder = factory(SalesOrder::class)->create();
+
+        //Act
+        $result = $salesOrder->status()->transitionIfCanBeQuietly('approved', 'Approved from ERP');
+
+        //Assert
+        $salesOrder->refresh();
+
+        $this->assertTrue($result);
+        $this->assertEquals('approved', $salesOrder->status);
+        $this->assertEquals('Approved from ERP', $salesOrder->status()->getCustomProperty('Additional Details'));
+    }
+
+    /** @test */
     public function should_not_do_anything_when_transitioning_to_same_state()
     {
         //Arrange
@@ -416,6 +559,37 @@ class HasStateMachinesTest extends TestCase
 
         //Act
         $salesOrder->status()->transitionTo('approved');
+
+        //Assert
+        $salesOrder->refresh();
+
+        $this->assertFalse($salesOrder->status()->hasPendingTransitions());
+        $this->assertTrue($salesOrder->fulfillment()->hasPendingTransitions());
+    }
+
+    /** @test */
+    public function transition_if_can_be_quietly_should_cancel_all_pending_transitions_when_transitioning()
+    {
+        //Arrange
+        $salesOrder = factory(SalesOrder::class)->create();
+
+        factory(PendingTransition::class)->times(5)->create([
+            'field' => 'status',
+            'model_id' => $salesOrder->id,
+            'model_type' => SalesOrder::class,
+        ]);
+
+        factory(PendingTransition::class)->times(5)->create([
+            'field' => 'fulfillment',
+            'model_id' => $salesOrder->id,
+            'model_type' => SalesOrder::class,
+        ]);
+
+        $this->assertTrue($salesOrder->status()->hasPendingTransitions());
+        $this->assertTrue($salesOrder->fulfillment()->hasPendingTransitions());
+
+        //Act
+        $salesOrder->status()->transitionIfCanBeQuietly('approved');
 
         //Assert
         $salesOrder->refresh();
