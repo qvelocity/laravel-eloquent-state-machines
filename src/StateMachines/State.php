@@ -7,6 +7,7 @@ use Asantibanez\LaravelEloquentStateMachines\Exceptions\TransitionNotAllowedExce
 use Asantibanez\LaravelEloquentStateMachines\Models\PendingTransition;
 use Asantibanez\LaravelEloquentStateMachines\Models\StateHistory;
 use Carbon\Carbon;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Class State
@@ -98,6 +99,63 @@ class State
             $customProperties,
             $responsible
         );
+    }
+
+    public function transitionToQuietly($state, $customProperties = [], $responsible = null)
+    {
+        $this->stateMachine->transitionToQuietly(
+            $from = $this->state,
+            $to = $state,
+            $customProperties,
+            $responsible
+        );
+    }
+
+    /**
+     * @param mixed $to
+     * @param string|array|null $additionalDetails
+     */
+    public function transitionIfCanBe($to, $additionalDetails = null) : bool
+    {
+        if (!$this->canBe($to) && !$this->stateMachine->canBe('*', $to)) {
+            return false;
+        }
+
+        if ($additionalDetails) {
+            $customProperties = is_array($additionalDetails)
+                ? $additionalDetails
+                : ['Additional Details' => $additionalDetails];
+        }
+
+        $this->transitionTo($to, $customProperties ?? []);
+
+        return true;
+    }
+
+    /**
+     * @param mixed $to
+     * @param string|array|null $additionalDetails
+     * @throws ValidationException
+     */
+    public function transitionIfCanBeQuietly($to, $additionalDetails = null) : bool
+    {
+        if (!$this->canBe($to) && !$this->stateMachine->canBe('*', $to)) {
+            return false;
+        }
+
+        if ($additionalDetails) {
+            $customProperties = is_array($additionalDetails)
+                ? $additionalDetails
+                : ['Additional Details' => $additionalDetails];
+        }
+
+        $this->stateMachine->transitionToQuietly(
+            $from = $this->state,
+            $to,
+            $customProperties ?? []
+        );
+
+        return true;
     }
 
     /**
