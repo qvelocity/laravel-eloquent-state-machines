@@ -96,7 +96,7 @@ abstract class StateMachine
      */
     public function transitionTo($from, $to, $customProperties = [], $responsible = null)
     {
-        $this->performTransition($from, $to, $customProperties, $responsible, true);
+        $this->performTransition($from, $to, $customProperties, $responsible, false);
     }
 
     /**
@@ -109,7 +109,7 @@ abstract class StateMachine
      */
     public function transitionToQuietly($from, $to, $customProperties = [], $responsible = null)
     {
-        $this->performTransition($from, $to, $customProperties, $responsible, false);
+        $this->performTransition($from, $to, $customProperties, $responsible, true);
     }
 
     /**
@@ -117,11 +117,11 @@ abstract class StateMachine
      * @param $to
      * @param array $customProperties
      * @param null|mixed $responsible
-     * @param bool $runHooks
+     * @param bool $quietly
      * @throws TransitionNotAllowedException
      * @throws ValidationException
      */
-    protected function performTransition($from, $to, $customProperties = [], $responsible = null, $runHooks = true)
+    protected function performTransition($from, $to, $customProperties = [], $responsible = null, $quietly = false)
     {
         if ($to === $this->currentState()) {
             return;
@@ -136,7 +136,7 @@ abstract class StateMachine
             throw new ValidationException($validator);
         }
 
-        if ($runHooks) {
+        if (!$quietly) {
             $beforeTransitionHooks = $this->beforeTransitionHooks()[$from] ?? [];
 
             collect($beforeTransitionHooks)
@@ -158,7 +158,7 @@ abstract class StateMachine
             $this->model->recordState($field, $from, $to, $customProperties, $responsible, $changedAttributes);
         }
 
-        if ($runHooks) {
+        if (!$quietly) {
             $afterTransitionHooks = $this->afterTransitionHooks()[$to] ?? [];
 
             collect($afterTransitionHooks)
