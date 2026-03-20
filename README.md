@@ -255,6 +255,27 @@ When applying the transition, the state machine will verify if the state transit
 to the `transitions()` states we've defined. If the transition is not allowed, a `TransitionNotAllowed`
 exception will be thrown.
 
+If you prefer to avoid throwing a transition exception when the transition is not allowed, you can use
+`transitionIfCanBe`. This method returns a boolean that indicates whether the transition was applied.
+
+```php
+$salesOrder->status()->transitionIfCanBe('approved'); // true or false
+
+$salesOrder->status()->transitionIfCanBe('approved', 'Customer has available credit');
+
+$salesOrder->status()->transitionIfCanBe('approved', [
+    'comments' => 'All ready to go',
+]);
+```
+
+If you need to apply a transition without running before/after transition hooks, you can use the following quiet transition methods are available:
+
+```php
+$salesOrder->status()->transitionToQuietly('approved');
+
+$salesOrder->status()->transitionIfCanBeQuietly('approved'); // true or false
+```
+
 ### Querying History
 
 If `recordHistory()` is set to `true` in our State Machine, each state transition will be recorded in
@@ -412,7 +433,7 @@ class StatusStateMachine extends StateMachine
                 'total' => 'gt:0',
             ]);
         }
-        
+
         return parent::validatorForTransition($from, $to, $model);
     }
 }

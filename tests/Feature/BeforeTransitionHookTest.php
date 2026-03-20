@@ -61,4 +61,28 @@ class BeforeTransitionHookTest extends TestCase
 
         Queue::assertNotPushed(BeforeTransitionJob::class);
     }
+
+    /** @test */
+    public function should_skip_before_transition_hooks_when_transitioning_quietly()
+    {
+        //Arrange
+        Queue::fake();
+
+        $salesOrder = SalesOrderWithBeforeTransitionHook::create();
+
+        $this->assertNull($salesOrder->total);
+        $this->assertNull($salesOrder->notes);
+
+        //Act
+        $salesOrder->status()->transitionToQuietly('approved');
+
+        //Assert
+        $salesOrder->refresh();
+
+        $this->assertEquals('approved', $salesOrder->status);
+        $this->assertNull($salesOrder->total);
+        $this->assertNull($salesOrder->notes);
+
+        Queue::assertNotPushed(BeforeTransitionJob::class);
+    }
 }

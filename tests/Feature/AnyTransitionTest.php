@@ -8,7 +8,6 @@ use Asantibanez\LaravelEloquentStateMachines\Tests\TestModels\SalesOrderWithFrom
 use Asantibanez\LaravelEloquentStateMachines\Tests\TestModels\SalesOrderWithToAny;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
-use Queue;
 
 class AnyTransitionTest extends TestCase
 {
@@ -54,6 +53,42 @@ class AnyTransitionTest extends TestCase
 
         $this->assertTrue($salesOrder->status()->is('approved'));
 
+        $this->assertEquals('approved', $salesOrder->status);
+    }
+
+    /** @test */
+    public function transition_if_can_be_should_allow_wildcard_from_any_transitions()
+    {
+        //Arrange
+        $salesOrder = SalesOrderWithFromAny::create();
+
+        $this->assertFalse($salesOrder->status()->canBe('approved'));
+
+        //Act
+        $result = $salesOrder->status()->transitionIfCanBe('approved');
+
+        //Assert
+        $salesOrder->refresh();
+
+        $this->assertTrue($result);
+        $this->assertEquals('approved', $salesOrder->status);
+    }
+
+    /** @test */
+    public function transition_if_can_be_quietly_should_allow_wildcard_from_any_transitions()
+    {
+        //Arrange
+        $salesOrder = SalesOrderWithFromAny::create();
+
+        $this->assertFalse($salesOrder->status()->canBe('approved'));
+
+        //Act
+        $result = $salesOrder->status()->transitionIfCanBeQuietly('approved');
+
+        //Assert
+        $salesOrder->refresh();
+
+        $this->assertTrue($result);
         $this->assertEquals('approved', $salesOrder->status);
     }
 
