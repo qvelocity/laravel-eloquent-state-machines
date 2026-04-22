@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Javoscript\MacroableModels\Facades\MacroableModels;
+use ReflectionClass;
 
 
 /**
@@ -20,10 +21,8 @@ trait HasStateMachines
 {
     public static function bootHasStateMachines()
     {
-        $model = new static();
-
-        collect($model->stateMachines)
-            ->each(function ($_, $field) use ($model) {
+        collect(static::getStateMachines())
+            ->each(function ($_, $field) {
                 MacroableModels::addMacro(static::class, $field, function () use ($field) {
                     $stateMachine = new $this->stateMachines[$field]($field, $this);
                     return new State($this->{$stateMachine->field}, $stateMachine);
@@ -151,5 +150,15 @@ trait HasStateMachines
         $pendingTransition = $this->pendingTransitions()->save($pendingTransition);
 
         return $pendingTransition;
+    }
+
+    private static function getStateMachines(): array
+    {
+        $reflection = new ReflectionClass(static::class);
+        $defaults = $reflection->getDefaultProperties();
+
+        return is_array($defaults['stateMachines'] ?? null)
+            ? $defaults['stateMachines']
+            : [];
     }
 }
