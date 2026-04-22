@@ -84,7 +84,7 @@ trait HasStateMachines
         });
     }
 
-    public function getChangedAttributes() : array
+    public function getChangedAttributes(): array
     {
         return collect($this->getDirty())
             ->mapWithKeys(function ($_, $attribute) {
@@ -135,7 +135,7 @@ trait HasStateMachines
         $this->stateHistory()->save($stateHistory);
     }
 
-    public function recordPendingTransition($field, $from, $to, $when, $customProperties = [], $responsible = null) : PendingTransition
+    public function recordPendingTransition($field, $from, $to, $when, $customProperties = [], $responsible = null): PendingTransition
     {
         /** @var PendingTransition $pendingTransition */
         $pendingTransition = PendingTransition::make([
@@ -154,5 +154,4 @@ trait HasStateMachines
 
         return $pendingTransition;
     }
-
 }
