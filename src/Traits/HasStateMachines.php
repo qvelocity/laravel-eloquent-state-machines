@@ -20,7 +20,7 @@ trait HasStateMachines
 {
     public static function bootHasStateMachines()
     {
-        if (is_callable([static::class, 'whenBooted'])) {
+        if (method_exists(static::class, 'whenBooted')) {
             static::whenBooted(function () {
                 static::registerStateMachineHooks();
             });
