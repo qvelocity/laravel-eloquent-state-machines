@@ -20,67 +20,79 @@ trait HasStateMachines
 {
     public static function bootHasStateMachines()
     {
-        static::whenBooted(function () {
-            $model = new static();
+        if (is_callable([static::class, 'whenBooted'])) {
+            static::whenBooted(function () {
+                static::registerStateMachineHooks();
+            });
+            return;
+        }
 
-            collect(is_array($model->stateMachines ?? null) ? $model->stateMachines : [])
-                ->each(function ($_, $field) {
-                    MacroableModels::addMacro(static::class, $field, function () use ($field) {
-                        $stateMachine = new $this->stateMachines[$field]($field, $this);
-                        return new State($this->{$stateMachine->field}, $stateMachine);
-                    });
+        static::booted(function () {
+            static::registerStateMachineHooks();
+        });
+    }
 
-                    $camelField = Str::of($field)->camel();
+    private static function registerStateMachineHooks(): void
+    {
+        $model = new static();
 
-                    MacroableModels::addMacro(static::class, $camelField, function () use ($field) {
-                        $stateMachine = new $this->stateMachines[$field]($field, $this);
-                        return new State($this->{$stateMachine->field}, $stateMachine);
-                    });
-
-                    $studlyField = Str::of($field)->studly();
-
-                    Builder::macro("whereHas{$studlyField}", function ($callable = null) use ($field) {
-                        $model = $this->getModel();
-
-                        if (!method_exists($model, 'stateHistory')) {
-                            return $this->newQuery();
-                        }
-
-                        return $this->whereHas('stateHistory', function ($query) use ($field, $callable) {
-                            $query->forField($field);
-                            if ($callable !== null) {
-                                $callable($query);
-                            }
-                            return $query;
-                        });
-                    });
+        collect(is_array($model->stateMachines ?? null) ? $model->stateMachines : [])
+            ->each(function ($_, $field) {
+                MacroableModels::addMacro(static::class, $field, function () use ($field) {
+                    $stateMachine = new $this->stateMachines[$field]($field, $this);
+                    return new State($this->{$stateMachine->field}, $stateMachine);
                 });
 
-            static::creating(function (Model $model) {
-                $model->initStateMachines();
-            });
+                $camelField = Str::of($field)->camel();
 
-            static::created(function (Model $model) {
-                collect($model->stateMachines)
-                    ->each(function ($_, $field) use ($model) {
-                        $currentState = $model->$field;
-                        $stateMachine = $model->$field()->stateMachine();
+                MacroableModels::addMacro(static::class, $camelField, function () use ($field) {
+                    $stateMachine = new $this->stateMachines[$field]($field, $this);
+                    return new State($this->{$stateMachine->field}, $stateMachine);
+                });
 
-                        if ($currentState === null) {
-                            return;
+                $studlyField = Str::of($field)->studly();
+
+                Builder::macro("whereHas{$studlyField}", function ($callable = null) use ($field) {
+                    $model = $this->getModel();
+
+                    if (!method_exists($model, 'stateHistory')) {
+                        return $this->newQuery();
+                    }
+
+                    return $this->whereHas('stateHistory', function ($query) use ($field, $callable) {
+                        $query->forField($field);
+                        if ($callable !== null) {
+                            $callable($query);
                         }
-
-                        if (!$stateMachine->recordHistory()) {
-                            return;
-                        }
-
-                        $responsible = auth()->guard()->user();
-
-                        $changedAttributes = $model->getChangedAttributes();
-
-                        $model->recordState($field, null, $currentState, [], $responsible, $changedAttributes);
+                        return $query;
                     });
+                });
             });
+
+        static::creating(function (Model $model) {
+            $model->initStateMachines();
+        });
+
+        static::created(function (Model $model) {
+            collect($model->stateMachines)
+                ->each(function ($_, $field) use ($model) {
+                    $currentState = $model->$field;
+                    $stateMachine = $model->$field()->stateMachine();
+
+                    if ($currentState === null) {
+                        return;
+                    }
+
+                    if (!$stateMachine->recordHistory()) {
+                        return;
+                    }
+
+                    $responsible = auth()->guard()->user();
+
+                    $changedAttributes = $model->getChangedAttributes();
+
+                    $model->recordState($field, null, $currentState, [], $responsible, $changedAttributes);
+                });
         });
     }
 
