@@ -27,9 +27,7 @@ trait HasStateMachines
             return;
         }
 
-        static::booted(function () {
-            static::registerStateMachineHooks();
-        });
+        static::registerStateMachineHooks();
     }
 
     private static function registerStateMachineHooks(): void
