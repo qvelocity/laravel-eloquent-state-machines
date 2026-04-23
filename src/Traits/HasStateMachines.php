@@ -86,7 +86,7 @@ trait HasStateMachines
                         return;
                     }
 
-                    $responsible = auth()->guard()->user();
+                    $responsible = auth()->user();
 
                     $changedAttributes = $model->getChangedAttributes();
 
