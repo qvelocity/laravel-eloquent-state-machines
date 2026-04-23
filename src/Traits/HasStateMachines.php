@@ -24,6 +24,7 @@ trait HasStateMachines
             static::whenBooted(function () {
                 static::registerStateMachineHooks();
             });
+
             return;
         }
 
