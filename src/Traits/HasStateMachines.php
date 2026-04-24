@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Javoscript\MacroableModels\Facades\MacroableModels;
-use ReflectionClass;
 
 
 /**
@@ -21,7 +20,22 @@ trait HasStateMachines
 {
     public static function bootHasStateMachines()
     {
-        collect(static::getStateMachines())
+        if (method_exists(static::class, 'whenBooted')) {
+            static::whenBooted(function () {
+                static::registerStateMachineHooks();
+            });
+
+            return;
+        }
+
+        static::registerStateMachineHooks();
+    }
+
+    private static function registerStateMachineHooks(): void
+    {
+        $model = new static();
+
+        collect(is_array($model->stateMachines ?? null) ? $model->stateMachines : [])
             ->each(function ($_, $field) {
                 MacroableModels::addMacro(static::class, $field, function () use ($field) {
                     $stateMachine = new $this->stateMachines[$field]($field, $this);
@@ -54,11 +68,11 @@ trait HasStateMachines
                 });
             });
 
-        self::creating(function (Model $model) {
+        static::creating(function (Model $model) {
             $model->initStateMachines();
         });
 
-        self::created(function (Model $model) {
+        static::created(function (Model $model) {
             collect($model->stateMachines)
                 ->each(function ($_, $field) use ($model) {
                     $currentState = $model->$field;
@@ -81,7 +95,7 @@ trait HasStateMachines
         });
     }
 
-    public function getChangedAttributes() : array
+    public function getChangedAttributes(): array
     {
         return collect($this->getDirty())
             ->mapWithKeys(function ($_, $attribute) {
@@ -132,7 +146,7 @@ trait HasStateMachines
         $this->stateHistory()->save($stateHistory);
     }
 
-    public function recordPendingTransition($field, $from, $to, $when, $customProperties = [], $responsible = null) : PendingTransition
+    public function recordPendingTransition($field, $from, $to, $when, $customProperties = [], $responsible = null): PendingTransition
     {
         /** @var PendingTransition $pendingTransition */
         $pendingTransition = PendingTransition::make([
@@ -150,15 +164,5 @@ trait HasStateMachines
         $pendingTransition = $this->pendingTransitions()->save($pendingTransition);
 
         return $pendingTransition;
-    }
-
-    private static function getStateMachines(): array
-    {
-        $reflection = new ReflectionClass(static::class);
-        $defaults = $reflection->getDefaultProperties();
-
-        return is_array($defaults['stateMachines'] ?? null)
-            ? $defaults['stateMachines']
-            : [];
     }
 }
